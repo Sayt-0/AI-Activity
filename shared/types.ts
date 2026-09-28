@@ -202,6 +202,20 @@ export interface ProfilesResponse {
   profiles: Profile[];
 }
 
+/** A followed GitHub account with an enabled, public AI Activity profile. */
+export interface FriendEntry extends Profile {
+  tokens: number;
+  sessions: number;
+  last_active: number | null;
+}
+
+export interface FriendsResponse {
+  /** Rolling seven-day window, in Unix seconds. */
+  since: number;
+  until: number;
+  friends: FriendEntry[];
+}
+
 /** POST /api/ingest/<tool> with one flat event. */
 export interface IngestResult {
   ok: true;

@@ -4,6 +4,7 @@
   import ActivityChart from "./components/ActivityChart.svelte";
   import Conversations from "./components/Conversations.svelte";
   import DangerZone from "./components/DangerZone.svelte";
+  import Friends from "./components/Friends.svelte";
   import DevicesPanel from "./components/DevicesPanel.svelte";
   import Leaderboard from "./components/Leaderboard.svelte";
   import OpenCodeCard from "./components/OpenCodeCard.svelte";
@@ -28,6 +29,7 @@
     dash.route.page === "demo" ? { label: DEMO_PROFILE.display_name, picture: { name: DEMO_PROFILE.display_name, url: null } }
     : dash.route.page === "profile" ? (dash.shown ? { label: `@${dash.shown.username}`, mono: true, picture: { name: dash.shown.display_name, url: dash.shown.avatar_url } } : null)
     : dash.route.page === "leaderboard" ? { label: "Leaderboard" }
+    : dash.route.page === "friends" && dash.account ? { label: "Friends" }
     : dash.route.page === "settings" && dash.account ? { label: "Settings" }
     : dash.route.page === "admin" && dash.account ? { label: "Admin panel" }
     : null);
@@ -39,6 +41,7 @@
     document.title = page === "settings" ? "Settings · AI Activity"
       : page === "admin" ? "Admin panel · AI Activity"
       : page === "leaderboard" ? "Leaderboard · AI Activity"
+      : page === "friends" ? "Friends · AI Activity"
       : (page === "profile" || page === "demo") && dash.shown ? `${dash.shown.display_name} · AI Activity${dash.vm?.demo ? " · Demo" : ""}`
         : "AI Activity";
   });
@@ -109,6 +112,10 @@
 
     {#if dash.route.page === "leaderboard" && dash.status === "ready"}
       <Leaderboard self={dash.account?.username ?? null} onopen={(u) => dash.openProfile(u)} />
+    {/if}
+
+    {#if dash.route.page === "friends" && dash.account && dash.status === "ready"}
+      <Friends onopen={(u) => dash.openProfile(u)} />
     {/if}
 
     {#if dash.vm && dash.shown}

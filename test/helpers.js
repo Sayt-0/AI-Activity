@@ -23,7 +23,12 @@ export const TEST_ADMIN = { username: "admin" };
  * /users/<login>): servers get it as GITHUB_URL / GITHUB_API_URL. Users
  * are made up on first use (githubUser); a code signs one of them in.
  */
-const github = { users: new Map(), codes: new Map(), requests: [], nextId: 1000, server: null, base: "" };
+const github = { users: new Map(), follows: new Map(), codes: new Map(), requests: [], nextId: 1000, server: null, base: "" };
+
+/** Fake public following list. Pass null to simulate GitHub being unavailable. */
+export function githubFollowing(login, followed) {
+  github.follows.set(login.toLowerCase(), followed);
+}
 
 /** The fake GitHub account with that login (made up on first use, or changed by `over`). */
 export function githubUser(login, over = {}) {
@@ -86,6 +91,14 @@ export async function fakeGithub() {
     if (byLogin) {
       const user = github.users.get(decodeURIComponent(byLogin[1]).toLowerCase());
       return user ? send(200, user) : send(404, { message: "Not Found" });
+    }
+    const following = url.pathname.match(/^\/users\/([^/]+)\/following$/);
+    if (following) {
+      const login = decodeURIComponent(following[1]).toLowerCase();
+      const follows = github.follows.has(login) ? github.follows.get(login) : [];
+      if (follows === null) return send(503, { message: "Unavailable" });
+      const page = Number(url.searchParams.get("page") || 1);
+      return send(200, follows.slice((page - 1) * 100, page * 100).map((name) => githubUser(name)));
     }
     send(404, { message: "Not Found" });
   });

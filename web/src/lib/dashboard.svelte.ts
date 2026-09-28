@@ -14,6 +14,7 @@ export type Route =
   | { page: "profile"; username: string }
   | { page: "demo" }
   | { page: "leaderboard" }
+  | { page: "friends" }
   | { page: "settings" }
   | { page: "admin" };
 
@@ -61,6 +62,7 @@ function routeFromPath(): Route {
   if (/^\/settings\/?$/.test(path)) return { page: "settings" };
   if (/^\/admin\/?$/.test(path)) return { page: "admin" };
   if (/^\/leaderboard\/?$/.test(path)) return { page: "leaderboard" };
+  if (/^\/friends\/?$/.test(path)) return { page: "friends" };
   if (/^\/demo\/?$/.test(path)) return { page: "demo" };
   return { page: "home" };
 }
@@ -139,7 +141,7 @@ export class Dashboard {
         if (route.page === "profile") await this.loadProfile(route.username);
         // Public, like profile pages: the page loads its own data.
         else if (route.page === "leaderboard") this.status = "ready";
-        else if (route.page === "settings" || route.page === "admin") {
+        else if (route.page === "settings" || route.page === "admin" || route.page === "friends") {
           this.go(`/?next=${encodeURIComponent(currentPath())}`, true);
         }
         else this.status = auth.setup_required ? "setup" : "signed-out";

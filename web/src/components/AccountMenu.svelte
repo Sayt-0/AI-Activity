@@ -34,6 +34,7 @@
       <p class="who"><strong>{account.display_name}</strong><span class="mono">@{account.username}</span></p>
       <button type="button" role="menuitem" onclick={pick(() => onnavigate(`/u/${encodeURIComponent(account.username)}`))}>Your profile</button>
       <button type="button" role="menuitem" onclick={pick(() => onnavigate("/leaderboard"))}>Leaderboard</button>
+      <button type="button" role="menuitem" onclick={pick(() => onnavigate("/friends"))}>Friends</button>
       <button type="button" role="menuitem" onclick={pick(() => onnavigate("/settings"))}>Settings</button>
       {#if account.is_admin}
         <button type="button" role="menuitem" onclick={pick(() => onnavigate("/admin"))}>Admin panel</button>

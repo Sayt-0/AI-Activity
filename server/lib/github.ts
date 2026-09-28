@@ -33,6 +33,8 @@ export interface GithubUser {
 export const GITHUB_LOGIN = /^[A-Za-z0-9-]{1,39}$/;
 const NAME_MAX = 60;
 const TIMEOUT_MS = 10_000;
+const FOLLOWING_CACHE_MS = 5 * 60_000;
+const FOLLOWING_MAX_PAGES = 100;
 
 /** The account fields from a GitHub user object, or null when it is not one. */
 export function githubUser(v: unknown): GithubUser | null {
@@ -70,4 +72,28 @@ export async function signedInUser(gh: GithubConfig, code: string, redirectUri: 
   }));
   if (!user) throw new Error("GitHub gave no usable user");
   return user;
+}
+
+/** Public GitHub follows, identified by stable numeric ids. No OAuth scope or stored token. */
+export function followingReader(gh: GithubConfig) {
+  const cache = new Map<number, { until: number; ids: number[] }>();
+  return async (viewerId: number, login: string): Promise<number[]> => {
+    const saved = cache.get(viewerId);
+    if (saved && saved.until > Date.now()) return saved.ids;
+    const ids: number[] = [];
+    for (let page = 1; page <= FOLLOWING_MAX_PAGES; page++) {
+      const url = `${gh.apiUrl}/users/${encodeURIComponent(login)}/following?per_page=100&page=${page}`;
+      const body = await fetchJson(url, { headers: { accept: "application/vnd.github+json", "user-agent": "ai-activity" } });
+      if (!Array.isArray(body)) throw new Error("GitHub gave no following list");
+      for (const item of body) {
+        const id = (item as { id?: unknown } | null)?.id;
+        if (Number.isSafeInteger(id) && (id as number) > 0) ids.push(id as number);
+      }
+      if (body.length < 100) {
+        cache.set(viewerId, { until: Date.now() + FOLLOWING_CACHE_MS, ids });
+        return ids;
+      }
+    }
+    throw new Error("GitHub following list is too long");
+  };
 }

@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { COLLECTOR_VERSIONS } from "../shared/collectors.ts";
 import {
   startServer, req, newDevice, event, collector, codexResponse, opencodeMessage, login, register, userId, TEST_ADMIN,
-  awayFromMidnight, githubSignIn, githubUser, renameGithubUser, githubRequests, githubCode,
+  awayFromMidnight, githubSignIn, githubUser, githubFollowing, renameGithubUser, githubRequests, githubCode,
 } from "./helpers.js";
 
 /** A plausible reset time for a current quota window (a far-future one is dropped). */
@@ -1260,6 +1260,51 @@ describe("deleting your own account", () => {
     assert.equal((await req(srv.base, "POST", `/api/users/${await userId(srv.base, "gus")}/admin`, { body: { is_admin: true } })).status, 200);
     assert.equal((await req(srv.base, "POST", "/api/account/delete", { body: self })).status, 200);
     assert.equal((await req(srv.base, "GET", "/api/users", { cookie: gus.cookie })).json.users.some((u) => u.username === "admin"), false);
+  });
+});
+
+describe("GitHub friends", () => {
+  test("matches numeric GitHub ids, shows only enabled profiles and public seven-day usage", async () => {
+    const srv = await startServer();
+    try {
+      const bob = await register(srv.base, "friend-bob", { over: { name: "Bob" } });
+      await register(srv.base, "friend-idle");
+      await register(srv.base, "friend-disabled");
+      githubFollowing("admin", ["friend-bob", "friend-disabled", "friend-idle", "friend-bob", "github-only"]);
+      const device = await newDevice(srv.base, "bob-machine", bob.cookie);
+      await req(srv.base, "POST", "/api/ingest/claude-code", { key: device.key, body: event({ session_id: "bobs-session" }) });
+      await req(srv.base, "POST", "/api/ingest/claude-code", { key: device.key, body: event({
+        session_id: "older-session", occurred_at: Math.floor(Date.now() / 1000) - 8 * 86400,
+      }) });
+      await req(srv.base, "POST", `/api/users/${await userId(srv.base, "friend-disabled")}/disable`);
+
+      assert.equal((await req(srv.base, "GET", "/api/friends", { anon: true })).status, 401);
+      const r = await req(srv.base, "GET", "/api/friends");
+      assert.equal(r.status, 200);
+      assert.deepEqual(r.json.friends.map((f) => f.username), ["friend-bob", "friend-idle"]);
+      assert.equal(r.json.friends[0].tokens, 180);
+      assert.equal(r.json.friends[0].sessions, 1);
+      assert.ok(r.json.friends[0].last_active >= r.json.since);
+      assert.equal(r.json.friends[1].last_active, null);
+      assert.equal(r.json.friends[1].tokens, 0);
+      assert.ok(r.json.until - r.json.since === 7 * 86400);
+      assert.equal(JSON.stringify(r.json).includes("bobs-session"), false);
+      assert.equal(JSON.stringify(r.json).includes(device.key), false);
+      // Disabling after a cached GitHub lookup still hides the local account.
+      await req(srv.base, "POST", `/api/users/${await userId(srv.base, "friend-bob")}/disable`);
+      assert.deepEqual((await req(srv.base, "GET", "/api/friends")).json.friends.map((f) => f.username), ["friend-idle"]);
+    } finally { await srv.stop(); }
+  });
+
+  test("empty and unavailable GitHub data are distinct", async () => {
+    const srv = await startServer();
+    try {
+      githubFollowing("admin", []);
+      assert.deepEqual((await req(srv.base, "GET", "/api/friends")).json.friends, []);
+      const other = await register(srv.base, "friend-unavailable");
+      githubFollowing("friend-unavailable", null);
+      assert.equal((await req(srv.base, "GET", "/api/friends", { cookie: other.cookie })).status, 503);
+    } finally { await srv.stop(); }
   });
 });
 

@@ -95,6 +95,18 @@ export function findUserByGithubId(db: DB, githubId: number): UserRow | null {
   return (db.prepare("SELECT * FROM users WHERE github_id = ?").get(githubId) as UserRow | undefined) ?? null;
 }
 
+/** A GitHub follow only appears when their public profile is currently enabled. */
+export function enabledUserByGithubId(db: DB, githubId: number): UserRow | null {
+  return (db.prepare("SELECT * FROM users WHERE github_id = ? AND disabled = 0").get(githubId) as UserRow | undefined) ?? null;
+}
+
+/** Latest event in the same rolling period used for a friend's totals. */
+export function latestUsageAt(db: DB, userId: number, sinceSec: number): number | null {
+  const row = db.prepare("SELECT occurred_at FROM usage_events WHERE user_id = ? AND occurred_at >= ? ORDER BY occurred_at DESC LIMIT 1")
+    .get(userId, sinceSec) as { occurred_at: number } | undefined;
+  return row?.occurred_at ?? null;
+}
+
 export function findUserByUsername(db: DB, username: string): UserRow | null {
   return (db.prepare("SELECT * FROM users WHERE username = ? COLLATE NOCASE").get(username) as UserRow | undefined)
     ?? null;

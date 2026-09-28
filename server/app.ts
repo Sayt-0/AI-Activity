@@ -13,6 +13,7 @@ import { createViewerAuth } from "./lib/viewer-auth.ts";
 import { accountRoutes, adminRoutes, userRoutes } from "./routes/account.ts";
 import { authRoutes } from "./routes/auth.ts";
 import { deviceRoutes } from "./routes/devices.ts";
+import { friendsRoutes } from "./routes/friends.ts";
 import { ingestRoutes } from "./routes/ingest.ts";
 import { leaderboardRoutes, profileListRoutes, publicProfileRoutes } from "./routes/usage.ts";
 
@@ -51,6 +52,7 @@ export function createApp(db: DB, config: Config, setupCode: string | null = nul
     // Everything below requires a viewer session.
     .use(auth.require)
     .use(perUser)
+    .route("/friends", friendsRoutes(db, config.github))
     .route("/devices", deviceRoutes(db))
     .route("/account", accountRoutes(db))
     .route("/users", userRoutes(db))
